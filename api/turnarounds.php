@@ -4,94 +4,90 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE');
 header('Access-Control-Allow-Headers: Content-Type');
 
-require_once '../classes/DropdownManager.php';
+$turnaroundFile = '../data/turnarounds.json';
+
+// Ensure data directory exists
+$dataDir = dirname($turnaroundFile);
+if (!is_dir($dataDir)) {
+    mkdir($dataDir, 0755, true);
+}
+
+// Initialize file if it doesn't exist
+if (!file_exists($turnaroundFile)) {
+    file_put_contents($turnaroundFile, json_encode([]));
+}
 
 $method = $_SERVER['REQUEST_METHOD'];
 $input = json_decode(file_get_contents('php://input'), true);
 
-// Use JSON file to store turnaround data
-$dataFile = '../data/turnarounds.json';
-
-function loadTurnarounds() {
-    global $dataFile;
-    if (!file_exists($dataFile)) {
+function loadTurnarounds($file) {
+    if (!file_exists($file)) {
         return [];
     }
-    $content = file_get_contents($dataFile);
+    $content = file_get_contents($file);
     return json_decode($content, true) ?: [];
 }
 
-function saveTurnarounds($data) {
-    global $dataFile;
-    $dir = dirname($dataFile);
-    if (!is_dir($dir)) {
-        mkdir($dir, 0755, true);
+function saveTurnarounds($file, $data) {
+    return file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT)) !== false;
+}
+
+function getNextId($turnarounds) {
+    $maxId = 0;
+    foreach ($turnarounds as $turnaround) {
+        if (isset($turnaround['id']) && $turnaround['id'] > $maxId) {
+            $maxId = $turnaround['id'];
+        }
     }
-    return file_put_contents($dataFile, json_encode($data, JSON_PRETTY_PRINT)) !== false;
-}
-
-function getCategoryName($categoryKey) {
-    $categoryManager = new DropdownManager('case_type_dom');
-    $categories = $categoryManager->getDropdownOptions();
-    return isset($categories[$categoryKey]) ? $categories[$categoryKey] : '';
-}
-
-function getTypeName($typeKey) {
-    $typeManager = new DropdownManager('sub_category_0');
-    $types = $typeManager->getDropdownOptions();
-    return isset($types[$typeKey]) ? $types[$typeKey] : '';
+    return $maxId + 1;
 }
 
 switch ($method) {
     case 'GET':
-        $turnarounds = loadTurnarounds();
+        $turnarounds = loadTurnarounds($turnaroundFile);
         
-        // Enrich with category and type names
+        // Load category and type names for display
+        require_once '../classes/DropdownManager.php';
+        $categoryManager = new DropdownManager('case_type_dom');
+        $typeManager = new DropdownManager('sub_category_0');
+        
+        $categories = $categoryManager->getDropdownOptions();
+        $types = $typeManager->getDropdownOptions();
+        
+        // Enhance turnaround data with names
         foreach ($turnarounds as &$turnaround) {
-            $turnaround['categoryName'] = getCategoryName($turnaround['categoryKey']);
-            $turnaround['typeName'] = getTypeName($turnaround['typeKey']);
+            $turnaround['categoryName'] = isset($categories[$turnaround['categoryKey']]) 
+                ? $categories[$turnaround['categoryKey']] 
+                : $turnaround['categoryKey'];
+            $turnaround['typeName'] = isset($types[$turnaround['typeKey']]) 
+                ? $types[$turnaround['typeKey']] 
+                : $turnaround['typeKey'];
         }
         
         echo json_encode(['success' => true, 'data' => $turnarounds]);
         break;
         
     case 'POST':
-        $required = ['categoryKey', 'typeKey', 'low', 'medium', 'mediumHigh', 'high'];
-        foreach ($required as $field) {
-            if (!isset($input[$field])) {
-                echo json_encode(['success' => false, 'message' => "Field $field is required"]);
-                exit;
-            }
-        }
-        
-        // Verify category and type exist
-        $categoryName = getCategoryName($input['categoryKey']);
-        $typeName = getTypeName($input['typeKey']);
-        
-        if (!$categoryName) {
-            echo json_encode(['success' => false, 'message' => 'Invalid category key']);
+        if (!isset($input['categoryKey']) || !isset($input['typeKey']) || 
+            !isset($input['low']) || !isset($input['medium']) || 
+            !isset($input['mediumHigh']) || !isset($input['high'])) {
+            echo json_encode(['success' => false, 'message' => 'All fields are required']);
             break;
         }
         
-        if (!$typeName) {
-            echo json_encode(['success' => false, 'message' => 'Invalid type key']);
-            break;
-        }
+        $turnarounds = loadTurnarounds($turnaroundFile);
         
         // Check if combination already exists
-        $turnarounds = loadTurnarounds();
         foreach ($turnarounds as $existing) {
             if ($existing['categoryKey'] === $input['categoryKey'] && 
                 $existing['typeKey'] === $input['typeKey']) {
-                echo json_encode(['success' => false, 'message' => 'Turnaround time already exists for this category and type']);
+                echo json_encode(['success' => false, 'message' => 'Turnaround time already exists for this combination']);
                 exit;
             }
         }
         
-        $newId = count($turnarounds) + 1;
-        
         $newTurnaround = [
-            'id' => $newId,
+            'id' => getNextId($turnarounds),
             'categoryKey' => $input['categoryKey'],
             'typeKey' => $input['typeKey'],
             'low' => (int)$input['low'],
@@ -102,8 +98,8 @@ switch ($method) {
         
         $turnarounds[] = $newTurnaround;
         
-        if (saveTurnarounds($turnarounds)) {
-            echo json_encode(['success' => true, 'message' => 'Turnaround time saved successfully']);
+        if (saveTurnarounds($turnaroundFile, $turnarounds)) {
+            echo json_encode(['success' => true, 'message' => 'Turnaround time added successfully']);
         } else {
             echo json_encode(['success' => false, 'message' => 'Failed to save turnaround time']);
         }
@@ -115,12 +111,26 @@ switch ($method) {
             break;
         }
         
-        $turnarounds = loadTurnarounds();
-        $turnarounds = array_filter($turnarounds, function($item) use ($input) {
-            return $item['id'] != $input['id'];
-        });
+        $turnarounds = loadTurnarounds($turnaroundFile);
+        $found = false;
         
-        if (saveTurnarounds(array_values($turnarounds))) {
+        foreach ($turnarounds as $index => $turnaround) {
+            if ($turnaround['id'] == $input['id']) {
+                unset($turnarounds[$index]);
+                $found = true;
+                break;
+            }
+        }
+        
+        if (!$found) {
+            echo json_encode(['success' => false, 'message' => 'Turnaround time not found']);
+            break;
+        }
+        
+        // Reindex array
+        $turnarounds = array_values($turnarounds);
+        
+        if (saveTurnarounds($turnaroundFile, $turnarounds)) {
             echo json_encode(['success' => true, 'message' => 'Turnaround time deleted successfully']);
         } else {
             echo json_encode(['success' => false, 'message' => 'Failed to delete turnaround time']);

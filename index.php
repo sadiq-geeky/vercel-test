@@ -18,7 +18,7 @@
         </div>
     </div>
 
-    <script src="custom/modules/kmbl_Complain_Conf/custom_ui/js/api-client.js"></script>
-    <script src="custom/modules/kmbl_Complain_Conf/custom_ui/js/app-backend.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/app-backend.js"></script>
 </body>
 </html>

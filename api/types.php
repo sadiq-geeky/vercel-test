@@ -17,27 +17,30 @@ switch ($method) {
         $types = $typeManager->getDropdownOptions();
         $categories = $categoryManager->getDropdownOptions();
         $result = [];
-        $id = 1;
         
         foreach ($types as $key => $value) {
-            // Extract category key from type key (e.g., "0001_0000" -> "0001")
+            // Extract category key from type key (format: categoryKey_typeKey)
             $parts = explode('_', $key, 2);
-            $categoryKey = $parts[0] ?? '';
-            
-            if (isset($categories[$categoryKey])) {
+            if (count($parts) === 2) {
+                $categoryKey = $parts[0];
+                $categoryName = isset($categories[$categoryKey]) ? $categories[$categoryKey] : $categoryKey;
+                
                 $result[] = [
-                    'id' => $id++,
                     'key' => $key,
                     'name' => $value,
                     'categoryKey' => $categoryKey,
-                    'categoryName' => $categories[$categoryKey]
+                    'categoryName' => $categoryName
                 ];
             }
         }
         
-        // Sort by key
+        // Sort by category key, then by type key
         usort($result, function($a, $b) {
-            return strcmp($a['key'], $b['key']);
+            $categoryCompare = strcmp($a['categoryKey'], $b['categoryKey']);
+            if ($categoryCompare === 0) {
+                return strcmp($a['key'], $b['key']);
+            }
+            return $categoryCompare;
         });
         
         echo json_encode(['success' => true, 'data' => $result]);
@@ -45,14 +48,7 @@ switch ($method) {
         
     case 'POST':
         if (!isset($input['name']) || !isset($input['categoryKey'])) {
-            echo json_encode(['success' => false, 'message' => 'Type name and category are required']);
-            break;
-        }
-        
-        // Verify category exists
-        $categories = $categoryManager->getDropdownOptions();
-        if (!isset($categories[$input['categoryKey']])) {
-            echo json_encode(['success' => false, 'message' => 'Invalid category key']);
+            echo json_encode(['success' => false, 'message' => 'Type name and category key are required']);
             break;
         }
         

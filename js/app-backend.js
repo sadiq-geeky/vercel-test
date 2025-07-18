@@ -3,12 +3,12 @@ const apiClient = {
   getCategories: () => Promise.resolve({ success: true, data: [] }),
   getTypes: () => Promise.resolve({ success: true, data: [] }),
   getTurnarounds: () => Promise.resolve({ success: true, data: [] }),
-  addTurnaround: (turnaround) => Promise.resolve({ success: true, message: "Turnaround added successfully" }),
-  addCategory: (name) => Promise.resolve({ success: true, message: "Category added successfully", key: "newKey" }),
-  addType: (name, categoryKey) => Promise.resolve({ success: true, message: "Type added successfully", key: "newKey" }),
-  deleteTurnaround: (id) => Promise.resolve({ success: true, message: "Turnaround deleted successfully" }),
-  deleteCategory: (key) => Promise.resolve({ success: true, message: "Category deleted successfully" }),
-  deleteType: (key) => Promise.resolve({ success: true, message: "Type deleted successfully" }),
+  addTurnaround: () => Promise.resolve({ success: true, message: "Turnaround added successfully" }),
+  addCategory: () => Promise.resolve({ success: true, message: "Category added successfully", key: "newKey" }),
+  addType: () => Promise.resolve({ success: true, message: "Type added successfully", key: "newKey" }),
+  deleteTurnaround: () => Promise.resolve({ success: true, message: "Turnaround deleted successfully" }),
+  deleteCategory: () => Promise.resolve({ success: true, message: "Category deleted successfully" }),
+  deleteType: () => Promise.resolve({ success: true, message: "Type deleted successfully" }),
 }
 
 // Main application logic using var instead of const
@@ -20,22 +20,33 @@ var data = {
 
 // Load data from backend
 function loadData() {
+  console.log("Loading data from backend...")
   return Promise.all([apiClient.getCategories(), apiClient.getTypes(), apiClient.getTurnarounds()])
     .then((responses) => {
+      console.log("All API responses received:", responses)
       var categoriesResponse = responses[0]
       var typesResponse = responses[1]
       var turnaroundsResponse = responses[2]
 
       if (categoriesResponse.success) {
         data.categories = categoriesResponse.data
+        console.log("Categories loaded:", data.categories)
+      } else {
+        console.error("Failed to load categories:", categoriesResponse.message)
       }
 
       if (typesResponse.success) {
         data.types = typesResponse.data
+        console.log("Types loaded:", data.types)
+      } else {
+        console.error("Failed to load types:", typesResponse.message)
       }
 
       if (turnaroundsResponse.success) {
         data.turnarounds = turnaroundsResponse.data
+        console.log("Turnarounds loaded:", data.turnarounds)
+      } else {
+        console.error("Failed to load turnarounds:", turnaroundsResponse.message)
       }
 
       // Refresh UI
@@ -120,17 +131,22 @@ function getTypeName(typeKey) {
 
 // Populate dropdowns
 function populateDropdowns() {
+  console.log("Populating dropdowns with categories:", data.categories)
   var categorySelects = ["complaint-category", "type-category"]
 
   for (var j = 0; j < categorySelects.length; j++) {
     var select = document.getElementById(categorySelects[j])
-    if (!select) continue
+    if (!select) {
+      console.log("Select element not found:", categorySelects[j])
+      continue
+    }
 
     select.innerHTML = '<option value="">Select Category</option>'
     for (var i = 0; i < data.categories.length; i++) {
       var category = data.categories[i]
       select.innerHTML += '<option value="' + category.key + '">' + category.name + " (" + category.key + ")</option>"
     }
+    console.log("Populated select:", categorySelects[j], "with", data.categories.length, "categories")
   }
 
   var complaintCategorySelect = document.getElementById("complaint-category")
@@ -254,6 +270,7 @@ function renderTypes() {
 
 // Form handlers
 document.addEventListener("DOMContentLoaded", () => {
+  console.log("DOM loaded, initializing app...")
   // Load data from backend
   loadData()
 
