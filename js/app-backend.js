@@ -1,15 +1,5 @@
 // Import or declare the apiClient variable before using it
-const apiClient = {
-  getCategories: () => Promise.resolve({ success: true, data: [] }),
-  getTypes: () => Promise.resolve({ success: true, data: [] }),
-  getTurnarounds: () => Promise.resolve({ success: true, data: [] }),
-  addTurnaround: () => Promise.resolve({ success: true, message: "Turnaround added successfully" }),
-  addCategory: () => Promise.resolve({ success: true, message: "Category added successfully", key: "newKey" }),
-  addType: () => Promise.resolve({ success: true, message: "Type added successfully", key: "newKey" }),
-  deleteTurnaround: () => Promise.resolve({ success: true, message: "Turnaround deleted successfully" }),
-  deleteCategory: () => Promise.resolve({ success: true, message: "Category deleted successfully" }),
-  deleteType: () => Promise.resolve({ success: true, message: "Type deleted successfully" }),
-}
+
 
 // Main application logic using var instead of const
 var data = {
