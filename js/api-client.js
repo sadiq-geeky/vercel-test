@@ -1,7 +1,7 @@
 // API Client for backend communication
 function ApiClient(baseUrl) {
   console.log("Initializing API Client with base URL:", baseUrl)
-  this.baseUrl = baseUrl || "api/"
+  this.baseUrl = baseUrl || "/custom_api/"
 }
 
 ApiClient.prototype.request = function (endpoint, options) {
